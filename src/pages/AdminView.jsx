@@ -40,7 +40,11 @@ export default function AdminView() {
 
   async function deleteUser(id) {
     if (!confirm('¿Eliminar usuario?')) return
-    await api.delete(`/admin/usuarios/${id}`); loadUsuarios()
+    try {
+      await api.delete(`/admin/usuarios/${id}`); loadUsuarios()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar')
+    }
   }
 
   // Categorías
@@ -55,7 +59,11 @@ export default function AdminView() {
 
   async function deleteCat(id) {
     if (!confirm('¿Eliminar categoría?')) return
-    await api.delete(`/admin/categorias/${id}`); loadCategorias()
+    try {
+      await api.delete(`/admin/categorias/${id}`); loadCategorias()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar')
+    }
   }
 
   const tabStyle = active => ({

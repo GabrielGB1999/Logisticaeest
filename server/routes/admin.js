@@ -12,7 +12,7 @@ router.get('/usuarios', requirePermiso('admin_ver'), async (req, res) => {
   ))
 })
 
-router.post('/usuarios', requirePermiso('admin_ver'), async (req, res) => {
+router.post('/usuarios', requirePermiso('admin_editar'), async (req, res) => {
   const db = await getDB()
   const { usuario, password, nombre, email, role_id } = req.body
   if (!usuario || !password || !nombre || !role_id) return res.status(400).json({ error: 'Datos incompletos' })
@@ -25,7 +25,7 @@ router.post('/usuarios', requirePermiso('admin_ver'), async (req, res) => {
   res.status(201).json({ id: result.lastID })
 })
 
-router.put('/usuarios/:id', requirePermiso('admin_ver'), async (req, res) => {
+router.put('/usuarios/:id', requirePermiso('admin_editar'), async (req, res) => {
   const db = await getDB()
   const { nombre, email, role_id, activo, password } = req.body
   const user = await db.get('SELECT id FROM usuarios WHERE id = ?', [req.params.id])
@@ -35,24 +35,28 @@ router.put('/usuarios/:id', requirePermiso('admin_ver'), async (req, res) => {
   res.json({ ok: true })
 })
 
-router.delete('/usuarios/:id', requirePermiso('admin_ver'), async (req, res) => {
+router.delete('/usuarios/:id', requirePermiso('admin_editar'), async (req, res) => {
   const db = await getDB()
   if (Number(req.params.id) === req.user.id) return res.status(400).json({ error: 'No podés eliminar tu propio usuario' })
   await db.run('DELETE FROM usuarios WHERE id = ?', [req.params.id])
   res.json({ ok: true })
 })
 
-router.get('/roles', async (req, res) => {
+// Expone la lista de permisos de cada rol: sólo para quien administra.
+router.get('/roles', requirePermiso('admin_ver'), async (req, res) => {
   const db = await getDB()
   res.json(await db.all('SELECT * FROM roles ORDER BY id'))
 })
 
+// Sin requirePermiso a propósito: las pantallas de Herramientas e Insumos la
+// usan para armar los filtros por categoría, así que tiene que poder leerla
+// cualquier usuario autenticado, no sólo quien administra.
 router.get('/categorias', async (req, res) => {
   const db = await getDB()
   res.json(await db.all('SELECT * FROM categorias ORDER BY tipo, nombre'))
 })
 
-router.post('/categorias', requirePermiso('admin_ver'), async (req, res) => {
+router.post('/categorias', requirePermiso('admin_editar'), async (req, res) => {
   const db = await getDB()
   const { nombre, tipo, color } = req.body
   if (!nombre || !tipo) return res.status(400).json({ error: 'Datos incompletos' })
@@ -60,14 +64,14 @@ router.post('/categorias', requirePermiso('admin_ver'), async (req, res) => {
   res.status(201).json({ id: result.lastID })
 })
 
-router.put('/categorias/:id', requirePermiso('admin_ver'), async (req, res) => {
+router.put('/categorias/:id', requirePermiso('admin_editar'), async (req, res) => {
   const db = await getDB()
   const { nombre, color } = req.body
   await db.run('UPDATE categorias SET nombre=?, color=? WHERE id=?', [nombre, color, req.params.id])
   res.json({ ok: true })
 })
 
-router.delete('/categorias/:id', requirePermiso('admin_ver'), async (req, res) => {
+router.delete('/categorias/:id', requirePermiso('admin_editar'), async (req, res) => {
   const db = await getDB()
   await db.run('DELETE FROM categorias WHERE id = ?', [req.params.id])
   res.json({ ok: true })

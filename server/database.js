@@ -152,7 +152,7 @@ async function initDB() {
   }
 
   const roles = [
-    { nombre: 'Administrador', permisos: JSON.stringify(['dashboard','herramientas_ver','herramientas_editar','insumos_ver','insumos_editar','movimientos_ver','movimientos_editar','alertas_ver','alertas_gestionar','admin_ver','alumnos_ver','alumnos_editar','docentes_ver','docentes_editar','prestamos_ver','prestamos_editar']) },
+    { nombre: 'Administrador', permisos: JSON.stringify(['dashboard','herramientas_ver','herramientas_editar','insumos_ver','insumos_editar','movimientos_ver','movimientos_editar','alertas_ver','alertas_gestionar','admin_ver','admin_editar','alumnos_ver','alumnos_editar','docentes_ver','docentes_editar','prestamos_ver','prestamos_editar']) },
     { nombre: 'Encargado', permisos: JSON.stringify(['dashboard','herramientas_ver','herramientas_editar','insumos_ver','insumos_editar','movimientos_ver','movimientos_editar','alertas_ver','alumnos_ver','alumnos_editar','docentes_ver','docentes_editar','prestamos_ver','prestamos_editar']) },
     { nombre: 'Docente', permisos: JSON.stringify(['dashboard','herramientas_ver','insumos_ver','movimientos_ver','alertas_ver','alumnos_ver','docentes_ver','prestamos_ver']) }
   ]

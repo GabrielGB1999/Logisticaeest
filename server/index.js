@@ -62,6 +62,19 @@ app.get('/{*path}', (req, res) => {
   if (!req.path.startsWith('/api')) res.sendFile(join(distPath, 'index.html'))
 })
 
+// Los errores no atendidos en una ruta /api deben volver como JSON. Express
+// por defecto responde una página HTML con el stack trace, que el frontend no
+// sabe interpretar y que además expone rutas internas del servidor.
+app.use((err, req, res, next) => {
+  console.error(err)
+  if (res.headersSent) return next(err)
+  if (!req.path.startsWith('/api')) return next(err)
+  if (String(err?.code || '').startsWith('SQLITE_CONSTRAINT')) {
+    return res.status(400).json({ error: 'La operación viola una restricción de la base (dato duplicado o referencia inexistente)' })
+  }
+  res.status(500).json({ error: 'Error interno del servidor' })
+})
+
 function getLocalIPs() {
   const nets = networkInterfaces()
   return Object.values(nets).flat()

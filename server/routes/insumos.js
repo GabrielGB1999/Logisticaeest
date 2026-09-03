@@ -40,6 +40,12 @@ router.post('/', requirePermiso('insumos_editar'), async (req, res) => {
   const db = await getDB()
   const { nombre, descripcion, categoria_id, codigo, unidad, stock_actual, stock_minimo, ubicacion, proveedor } = req.body
   if (!nombre) return res.status(400).json({ error: 'Nombre requerido' })
+  // codigo es UNIQUE: sin este control el INSERT rompe con SQLITE_CONSTRAINT y
+  // el usuario recibe un 500 sin explicación.
+  if (codigo) {
+    const dup = await db.get('SELECT id FROM insumos WHERE codigo = ?', [codigo])
+    if (dup) return res.status(400).json({ error: `Ya existe un insumo con el código ${codigo}` })
+  }
   const result = await db.run(
     'INSERT INTO insumos (nombre, descripcion, categoria_id, codigo, unidad, stock_actual, stock_minimo, ubicacion, proveedor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [nombre, descripcion || null, categoria_id || null, codigo || null, unidad || 'unidad', stock_actual ?? 0, stock_minimo ?? 0, ubicacion || null, proveedor || null]
@@ -53,6 +59,10 @@ router.put('/:id', requirePermiso('insumos_editar'), async (req, res) => {
   const { nombre, descripcion, categoria_id, codigo, unidad, stock_actual, stock_minimo, ubicacion, proveedor } = req.body
   const exists = await db.get('SELECT id FROM insumos WHERE id = ?', [req.params.id])
   if (!exists) return res.status(404).json({ error: 'No encontrado' })
+  if (codigo) {
+    const dup = await db.get('SELECT id FROM insumos WHERE codigo = ? AND id != ?', [codigo, req.params.id])
+    if (dup) return res.status(400).json({ error: `Ya existe un insumo con el código ${codigo}` })
+  }
   await db.run(
     'UPDATE insumos SET nombre=?, descripcion=?, categoria_id=?, codigo=?, unidad=?, stock_actual=?, stock_minimo=?, ubicacion=?, proveedor=? WHERE id=?',
     [nombre, descripcion || null, categoria_id || null, codigo || null, unidad, stock_actual, stock_minimo, ubicacion || null, proveedor || null, req.params.id]
