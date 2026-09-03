@@ -1,5 +1,18 @@
 node_modules/
 dist/
-logistica.sqlite
 .env
+
+# Base de datos: incluye los journals -wal y -shm de SQLite.
+# Nunca versionar: contienen datos reales del pañol.
+logistica.sqlite*
+
+# Planillas y exportaciones: pueden contener datos personales
+# de alumnos y docentes (nombre, apellido, DNI, curso).
 *.xlsx
+*.xltx
+*.xlsb
+*.xls
+*.csv
+
+# Excepción: plantilla en blanco de despachos (sin datos cargados).
+!planilla despachos.xltx

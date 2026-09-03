@@ -159,9 +159,14 @@ async function initDB() {
   const adminExists = await db.get('SELECT id FROM usuarios WHERE usuario = ?', ['admin'])
   if (!adminExists) {
     const adminRole = await db.get('SELECT id FROM roles WHERE nombre = ?', ['Administrador'])
-    const hash = bcrypt.hashSync('admin123', 10)
+    const inicial = process.env.ADMIN_PASSWORD || 'admin123'
+    const hash = bcrypt.hashSync(inicial, 10)
     await db.run('INSERT INTO usuarios (usuario, password, nombre, role_id) VALUES (?, ?, ?, ?)', ['admin', hash, 'Administrador', adminRole.id])
-    console.log('Usuario admin creado: admin / admin123')
+    console.log(`Usuario admin creado: admin / ${inicial}`)
+    if (!process.env.ADMIN_PASSWORD) {
+      console.warn('ATENCION: se usó la contraseña por defecto, que es pública (está en el repositorio).')
+      console.warn('Cambiala desde Administración -> Usuarios, o definí ADMIN_PASSWORD en .env antes del primer arranque.')
+    }
   }
 
   const cats = [

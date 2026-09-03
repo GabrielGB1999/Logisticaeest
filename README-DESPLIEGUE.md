@@ -107,10 +107,22 @@ El backend no necesita build — se ejecuta directamente con Node.
 
 ---
 
-## Credenciales por defecto
+## Primer inicio de sesión
 
-| Usuario | Contraseña | Rol           |
-|---------|-----------|---------------|
-| admin   | admin123  | Administrador |
+En una base de datos nueva el sistema crea automáticamente un único usuario
+**Administrador** llamado `admin`. La contraseña se toma de `ADMIN_PASSWORD`
+en el archivo `.env`, y se imprime en la consola al arrancar:
 
-**Cambiar la contraseña desde Administración → Usuarios tras el primer inicio de sesión.**
+```
+Usuario admin creado: admin / <contraseña>
+```
+
+**Recomendado:** definir `ADMIN_PASSWORD` en `.env` *antes* del primer arranque.
+
+> ⚠️ Si no se define, se usa una contraseña por defecto que está escrita en el
+> código fuente y por lo tanto es **pública**: cualquiera que vea el repositorio
+> la conoce. Un servidor que siga usándola está abierto a cualquier persona que
+> alcance el puerto 5000.
+
+Cambiar la contraseña en cualquier momento desde **Administración → Usuarios**.
+Si el equipo ya está en producción y nunca se cambió, cambiala ahora.
