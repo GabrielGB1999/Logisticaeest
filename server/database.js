@@ -1,17 +1,15 @@
 import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
 import bcrypt from 'bcryptjs'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { DB_FILE, ensureDataDir } from './paths.js'
 
 let db
 
 export async function getDB() {
   if (db) return db
+  ensureDataDir()
   db = await open({
-    filename: join(__dirname, '..', 'logistica.sqlite'),
+    filename: DB_FILE,
     driver: sqlite3.Database
   })
   await db.run('PRAGMA journal_mode = WAL')
@@ -178,16 +176,39 @@ async function initDB() {
     }
   }
 
-  const adminExists = await db.get('SELECT id FROM usuarios WHERE usuario = ?', ['admin'])
+  // Cuenta de administrador definida por entorno.
+  //   ADMIN_USER            nombre de usuario (por defecto "admin")
+  //   ADMIN_PASSWORD        contraseña con la que se crea la cuenta la primera vez
+  //   ADMIN_PASSWORD_RESET  si es "true", vuelve a poner esa contraseña en cada
+  //                         arranque. Sirve para recuperar el acceso si se
+  //                         perdió; hay que sacarlo después, porque mientras
+  //                         esté puesto pisa cualquier cambio hecho desde la
+  //                         pantalla de Administración.
+  const adminUser = (process.env.ADMIN_USER || '').trim() || 'admin'
+  const adminPass = process.env.ADMIN_PASSWORD
+  const adminExists = await db.get('SELECT id FROM usuarios WHERE usuario = ?', [adminUser])
+
   if (!adminExists) {
     const adminRole = await db.get('SELECT id FROM roles WHERE nombre = ?', ['Administrador'])
-    const inicial = process.env.ADMIN_PASSWORD || 'admin123'
-    const hash = bcrypt.hashSync(inicial, 10)
-    await db.run('INSERT INTO usuarios (usuario, password, nombre, role_id) VALUES (?, ?, ?, ?)', ['admin', hash, 'Administrador', adminRole.id])
-    console.log(`Usuario admin creado: admin / ${inicial}`)
-    if (!process.env.ADMIN_PASSWORD) {
+    const inicial = adminPass || 'admin123'
+    await db.run(
+      'INSERT INTO usuarios (usuario, password, nombre, role_id) VALUES (?, ?, ?, ?)',
+      [adminUser, bcrypt.hashSync(inicial, 10), 'Administrador', adminRole.id]
+    )
+    console.log(`Usuario administrador creado: ${adminUser}`)
+    if (!adminPass) {
       console.warn('ATENCION: se usó la contraseña por defecto, que es pública (está en el repositorio).')
-      console.warn('Cambiala desde Administración -> Usuarios, o definí ADMIN_PASSWORD en .env antes del primer arranque.')
+      console.warn('Definí ADMIN_PASSWORD en el archivo .env, o cambiala desde Administración -> Usuarios.')
+    }
+  } else if (process.env.ADMIN_PASSWORD_RESET === 'true') {
+    if (!adminPass) {
+      console.warn('ADMIN_PASSWORD_RESET está activo pero no hay ADMIN_PASSWORD definida: no se cambió nada.')
+    } else {
+      // Se reactiva la cuenta además de cambiar la clave: si quedó inactiva,
+      // sólo cambiar la contraseña no alcanzaría para volver a entrar.
+      await db.run('UPDATE usuarios SET password = ?, activo = 1 WHERE usuario = ?', [bcrypt.hashSync(adminPass, 10), adminUser])
+      console.warn(`ADMIN_PASSWORD_RESET activo: se restableció la contraseña de "${adminUser}".`)
+      console.warn('Quitá ADMIN_PASSWORD_RESET del .env y reiniciá, o volverá a hacerlo en cada arranque.')
     }
   }
 

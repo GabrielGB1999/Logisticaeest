@@ -1,26 +1,17 @@
 import { Router } from 'express'
 import XLSX from 'xlsx'
 import { existsSync } from 'fs'
-import { resolve, dirname, join } from 'path'
-import { fileURLToPath } from 'url'
 import { getDB } from '../database.js'
 import { requirePermiso } from '../middleware/auth.js'
+import { ALUMNOS_XLSX, DATA_DIR } from '../paths.js'
 
 const router = Router()
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 router.post('/import', requirePermiso('alumnos_editar'), async (req, res) => {
-    // __dirname is /server/routes, so we go two levels up to the root
-    let filePath = resolve(__dirname, '../../alumnos.xlsx');
-    
-    // Fallback if someone placed it in /server
-    if (!existsSync(filePath)) {
-        filePath = resolve(__dirname, '../alumnos.xlsx');
-    }
+    const filePath = ALUMNOS_XLSX;
 
     if (!existsSync(filePath)) {
-        return res.status(404).json({ error: `Archivo alumnos.xlsx no encontrado en ${filePath}` });
+        return res.status(404).json({ error: `No se encontró alumnos.xlsx en la carpeta de datos (${DATA_DIR}). Copiá la planilla ahí y volvé a intentar.` });
     }
 
     let db;
@@ -54,9 +45,12 @@ router.post('/import', requirePermiso('alumnos_editar'), async (req, res) => {
                 const grupo = String(row.D || '').trim();
 
                 if (dni && full_name) {
-                    const parts = full_name.split(',');
-                    const apellido = (parts[0] || '').trim();
-                    const nombre = (parts[1] || '').trim();
+                    // Se corta en la PRIMERA coma: todo lo que sigue es el
+                    // nombre. Con split(',')[1] un "Perez, Maria, Luz" perdía
+                    // "Luz" sin avisar.
+                    const coma = full_name.indexOf(',');
+                    const apellido = (coma === -1 ? full_name : full_name.slice(0, coma)).trim();
+                    const nombre = (coma === -1 ? '' : full_name.slice(coma + 1)).trim();
                     await stmt.run(dni, apellido, nombre, curso, grupo);
                     totalProcessed++;
                 }

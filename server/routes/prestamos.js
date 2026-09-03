@@ -5,11 +5,9 @@ import { checkStockAlertas } from '../alertas.js'
 import ExcelJS from 'exceljs'
 import path from 'path'
 import fs from 'fs'
-import { fileURLToPath } from 'url'
+import { PLANTILLA_DESPACHOS, REPORTES_DIR } from '../paths.js'
 
 const router = Router()
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 router.get('/', async (req, res) => {
   const db = await getDB()
@@ -152,8 +150,7 @@ router.delete('/:id', requirePermiso('prestamos_editar'), async (req, res) => {
 
 router.get('/export-returned', requirePermiso('prestamos_editar'), async (req, res) => {
     try {
-        const rootDir = path.resolve(__dirname, '../../');
-        const templatePath = path.resolve(rootDir, 'planilla despachos.xltx');
+        const templatePath = PLANTILLA_DESPACHOS;
         
         if (!fs.existsSync(templatePath)) {
             return res.status(404).json({ error: "Plantilla no encontrada" });
@@ -257,7 +254,7 @@ router.get('/export-returned', requirePermiso('prestamos_editar'), async (req, r
         const dateStr = now.toISOString().split('T')[0];
         const fileName = `${dateStr}-${turnName}.xlsx`;
 
-        const reportsDir = path.resolve(rootDir, 'REPORTES_GUARDADOS', year, monthName);
+        const reportsDir = path.join(REPORTES_DIR, year, monthName);
         if (!fs.existsSync(reportsDir)) {
             fs.mkdirSync(reportsDir, { recursive: true });
         }
