@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\proyectos\\\\Logistica EESTN4\\\\Logistica EESTN4\" -File)",
+      "Bash(Select-Object Name)"
+    ]
+  }
+}

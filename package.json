@@ -1,0 +1,40 @@
+{
+  "name": "logistica-eestn4",
+  "version": "1.0.0",
+  "description": "Sistema de Gestión de Stock - Escuela Técnica N°4",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev:server": "node --watch server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^5.0.0",
+    "express-rate-limit": "^7.3.1",
+    "framer-motion": "^11.2.10",
+    "helmet": "^7.1.0",
+    "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.400.0",
+    "multer": "^2.1.1",
+    "nodemailer": "^6.9.13",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.3.1",
+    "react-barcode": "^1.6.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^5.3.1"
+  }
+}
