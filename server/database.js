@@ -131,6 +131,7 @@ async function initDB() {
       fecha_inicio TEXT NOT NULL DEFAULT (datetime('now')),
       fecha_fin TEXT,
       observaciones TEXT,
+      nombre_manual TEXT,
       FOREIGN KEY (responsable_id) REFERENCES usuarios(id)
     );
     CREATE INDEX IF NOT EXISTS idx_herramientas_codigo ON herramientas(codigo);
@@ -143,6 +144,13 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_prestamos_estado ON prestamos(estado);
   `)
 
+  // Migración: bases creadas antes de que nombre_manual existiera en el esquema.
+  // Idempotente: en una base nueva la columna ya viene del CREATE TABLE.
+  const colsPrestamos = await db.all('PRAGMA table_info(prestamos)')
+  if (!colsPrestamos.some(c => c.name === 'nombre_manual')) {
+    await db.exec('ALTER TABLE prestamos ADD COLUMN nombre_manual TEXT')
+  }
+
   const roles = [
     { nombre: 'Administrador', permisos: JSON.stringify(['dashboard','herramientas_ver','herramientas_editar','insumos_ver','insumos_editar','movimientos_ver','movimientos_editar','alertas_ver','alertas_gestionar','admin_ver','alumnos_ver','alumnos_editar','docentes_ver','docentes_editar','prestamos_ver','prestamos_editar']) },
     { nombre: 'Encargado', permisos: JSON.stringify(['dashboard','herramientas_ver','herramientas_editar','insumos_ver','insumos_editar','movimientos_ver','movimientos_editar','alertas_ver','alumnos_ver','alumnos_editar','docentes_ver','docentes_editar','prestamos_ver','prestamos_editar']) },
@@ -151,9 +159,23 @@ async function initDB() {
   for (const r of roles) {
     await db.run('INSERT OR IGNORE INTO roles (nombre, permisos) VALUES (?, ?)', [r.nombre, r.permisos])
   }
-  // Actualizar permisos de roles existentes para incluir nuevos módulos
+  // Agregar a los roles existentes los permisos de módulos nuevos, sin pisar los
+  // que ya tengan: antes esto era un UPDATE que reescribía la lista completa en
+  // cada arranque y borraba cualquier ajuste hecho sobre un rol.
   for (const r of roles) {
-    await db.run('UPDATE roles SET permisos = ? WHERE nombre = ?', [r.permisos, r.nombre])
+    const actual = await db.get('SELECT permisos FROM roles WHERE nombre = ?', [r.nombre])
+    if (!actual) continue
+    let permisos
+    try {
+      permisos = JSON.parse(actual.permisos)
+      if (!Array.isArray(permisos)) permisos = []
+    } catch {
+      permisos = []
+    }
+    const faltantes = JSON.parse(r.permisos).filter(p => !permisos.includes(p))
+    if (faltantes.length) {
+      await db.run('UPDATE roles SET permisos = ? WHERE nombre = ?', [JSON.stringify([...permisos, ...faltantes]), r.nombre])
+    }
   }
 
   const adminExists = await db.get('SELECT id FROM usuarios WHERE usuario = ?', ['admin'])

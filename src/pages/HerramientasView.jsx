@@ -55,8 +55,12 @@ export default function HerramientasView({ can }) {
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar esta herramienta?')) return
-    await api.delete(`/herramientas/${id}`)
-    load()
+    try {
+      await api.delete(`/herramientas/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar')
+    }
   }
 
   function onScan(codigo) {

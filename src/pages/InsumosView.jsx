@@ -47,8 +47,12 @@ export default function InsumosView({ can }) {
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este insumo?')) return
-    await api.delete(`/insumos/${id}`)
-    load()
+    try {
+      await api.delete(`/insumos/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar')
+    }
   }
 
   return (

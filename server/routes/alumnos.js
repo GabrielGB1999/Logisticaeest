@@ -30,7 +30,18 @@ router.post('/import', requirePermiso('alumnos_editar'), async (req, res) => {
         let totalProcessed = 0;
 
         await db.run("BEGIN TRANSACTION");
-        const stmt = await db.prepare("INSERT OR REPLACE INTO alumnos (dni, apellido, nombre, curso, grupo) VALUES (?, ?, ?, ?, ?)");
+        // INSERT OR REPLACE borraba la fila y la volvía a insertar con un id nuevo,
+        // dejando huérfanos los préstamos que apuntaban al alumno (prestamos.persona_id
+        // no tiene clave foránea) y pisando el turno cargado a mano. El upsert por DNI
+        // conserva el id y sólo toca las columnas que trae la planilla.
+        const stmt = await db.prepare(`
+            INSERT INTO alumnos (dni, apellido, nombre, curso, grupo) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(dni) DO UPDATE SET
+                apellido = excluded.apellido,
+                nombre   = excluded.nombre,
+                curso    = excluded.curso,
+                grupo    = excluded.grupo
+        `);
         
         for (const sheetName of workbook.SheetNames) {
             const sheet = workbook.Sheets[sheetName];
@@ -115,6 +126,17 @@ router.put('/:id', requirePermiso('alumnos_editar'), async (req, res) => {
 
 router.delete('/:id', requirePermiso('alumnos_editar'), async (req, res) => {
   const db = await getDB()
+  const alumno = await db.get('SELECT id FROM alumnos WHERE id = ?', [req.params.id])
+  if (!alumno) return res.status(404).json({ error: 'No encontrado' })
+  // prestamos.persona_id no tiene clave foránea: si se borra el alumno, los
+  // préstamos sin devolver quedan apuntando a una fila inexistente.
+  const abiertos = await db.get(
+    "SELECT COUNT(*) as n FROM prestamos WHERE persona_tipo = 'alumno' AND persona_id = ? AND estado = 'prestado'",
+    [req.params.id]
+  )
+  if (abiertos.n > 0) {
+    return res.status(400).json({ error: `No se puede eliminar: el alumno tiene ${abiertos.n} préstamo(s) sin devolver` })
+  }
   await db.run('DELETE FROM alumnos WHERE id = ?', [req.params.id])
   res.json({ ok: true })
 })

@@ -85,7 +85,26 @@ router.put('/:id', requirePermiso('docentes_editar'), async (req, res) => {
 
 router.delete('/:id', requirePermiso('docentes_editar'), async (req, res) => {
   const db = await getDB()
-  await db.run('DELETE FROM docentes WHERE id = ?', [req.params.id])
+  const docente = await db.get('SELECT id FROM docentes WHERE id = ?', [req.params.id])
+  if (!docente) return res.status(404).json({ error: 'No encontrado' })
+  const abiertos = await db.get(
+    "SELECT COUNT(*) as n FROM prestamos WHERE persona_tipo = 'docente' AND persona_id = ? AND estado = 'prestado'",
+    [req.params.id]
+  )
+  if (abiertos.n > 0) {
+    return res.status(400).json({ error: `No se puede eliminar: el docente tiene ${abiertos.n} préstamo(s) sin devolver` })
+  }
+  // docente_horarios referencia a docentes: sin borrar primero los horarios,
+  // el DELETE falla por la clave foránea y devuelve un error 500.
+  await db.run('BEGIN')
+  try {
+    await db.run('DELETE FROM docente_horarios WHERE docente_id = ?', [req.params.id])
+    await db.run('DELETE FROM docentes WHERE id = ?', [req.params.id])
+    await db.run('COMMIT')
+  } catch (err) {
+    await db.run('ROLLBACK')
+    throw err
+  }
   res.json({ ok: true })
 })
 

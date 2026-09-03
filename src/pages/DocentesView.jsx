@@ -42,7 +42,11 @@ export default function DocentesView({ can }) {
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este docente?')) return
-    await api.delete(`/docentes/${id}`); load()
+    try {
+      await api.delete(`/docentes/${id}`); load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar')
+    }
   }
 
   async function openHorarios(d) {

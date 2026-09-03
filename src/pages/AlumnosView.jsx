@@ -41,7 +41,11 @@ export default function AlumnosView({ can }) {
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este alumno?')) return
-    await api.delete(`/alumnos/${id}`); load()
+    try {
+      await api.delete(`/alumnos/${id}`); load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar')
+    }
   }
 
   async function handleImport() {

@@ -72,6 +72,13 @@ router.delete('/:id', requirePermiso('herramientas_editar'), async (req, res) =>
   const db = await getDB()
   const exists = await db.get('SELECT id FROM herramientas WHERE id = ?', [req.params.id])
   if (!exists) return res.status(404).json({ error: 'No encontrado' })
+  const abiertos = await db.get(
+    "SELECT COUNT(*) as n FROM prestamos WHERE tipo_item = 'herramienta' AND item_id = ? AND estado = 'prestado'",
+    [req.params.id]
+  )
+  if (abiertos.n > 0) {
+    return res.status(400).json({ error: `No se puede eliminar: hay ${abiertos.n} préstamo(s) sin devolver de esta herramienta` })
+  }
   await db.run('DELETE FROM herramientas WHERE id = ?', [req.params.id])
   res.json({ ok: true })
 })
