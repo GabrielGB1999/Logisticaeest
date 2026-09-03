@@ -10,20 +10,28 @@ services:
       - .env
 
     environment:
-      # El puerto interno queda fijo. El puerto con el que se entra desde la red
-      # se cambia con HOST_PORT en el .env, no acá.
+      # Puerto interno fijo. El puerto con el que se entra desde la red se
+      # cambia con HOST_PORT en el .env, no acá.
       PORT: 5000
-      # Carpeta de datos dentro del contenedor. Se puede cambiar desde el .env.
+
+      # Carpeta de datos dentro del contenedor.
       DATA_DIR: ${DATA_DIR:-/data}
+
+      # IMPORTANTE. Los contenedores arrancan en UTC, y la aplicación usa la
+      # hora local para decidir el turno de un préstamo (Mañana/Tarde/
+      # Vespertino) y el día de la semana con el que busca al docente a cargo.
+      # Con UTC, un préstamo de las 11:00 se guardaría como "Tarde" y uno de
+      # las 21:00 quedaría atribuido al día siguiente.
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
 
     ports:
       - "${HOST_PORT:-5000}:5000"
 
     volumes:
-      # Todo lo que hay que respaldar vive acá: la base de datos, las planillas
-      # para importar y los reportes guardados.
+      # Todo lo que hay que respaldar: base de datos, planillas para importar
+      # y reportes guardados.
       - ./data:/data
-      # Para tener las planillas en una carpeta compartida del servidor,
+      # Para leer las planillas desde una carpeta compartida del servidor,
       # descomentar y ajustar la ruta de la izquierda, y poner en el .env:
       #   EXCEL_DIR=/planillas
       # - /srv/compartido/planillas:/planillas
@@ -34,3 +42,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+    # Sin esto los logs crecen sin límite y con el tiempo llenan el disco del
+    # servidor.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

@@ -43,6 +43,26 @@ ADMIN_USER=admin
 ADMIN_PASSWORD=<una contraseña propia>
 ```
 
+Revisar también la zona horaria, que ya viene puesta para Argentina:
+
+```env
+TZ=America/Argentina/Buenos_Aires
+```
+
+> La aplicación usa la **hora local** para decidir el turno de cada préstamo
+> (Mañana / Tarde / Vespertino) y el día de la semana con el que busca al
+> docente a cargo. Los contenedores arrancan en UTC, y si esto queda mal un
+> préstamo de las 11:00 se registra como "Tarde" y uno de las 21:00 se atribuye
+> al día siguiente, con lo cual no se le asigna el docente correcto.
+>
+> Al arrancar, el servidor imprime la hora y la zona que está usando. Conviene
+> mirarlo la primera vez:
+>
+> ```
+> docker compose logs | grep Hora
+>    Hora:    3/9/2026, 10:46:34  (zona: America/Buenos_Aires)
+> ```
+
 Levantar la aplicación:
 
 ```bash

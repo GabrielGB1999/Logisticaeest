@@ -18,6 +18,7 @@ try {
 } catch {}
 
 import { getDB } from './database.js'
+import { DATA_DIR } from './paths.js'
 import { verifyToken } from './middleware/auth.js'
 import authRouter from './routes/auth.js'
 import herramientasRouter from './routes/herramientas.js'
@@ -97,6 +98,11 @@ getDB().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     const ips = getLocalIPs()
     console.log('\n🚀 Logística EESTN4 iniciado')
+    // Se muestra la zona horaria porque de ella dependen el turno de los
+    // préstamos y el día con el que se busca al docente a cargo.
+    const zona = Intl.DateTimeFormat().resolvedOptions().timeZone || '(desconocida)'
+    console.log(`   Hora:    ${new Date().toLocaleString('es-AR')}  (zona: ${zona})`)
+    console.log(`   Datos:   ${DATA_DIR}`)
     console.log(`   Local:   http://localhost:${PORT}`)
     for (const ip of ips) {
       console.log(`   Red:     http://${ip}:${PORT}`)

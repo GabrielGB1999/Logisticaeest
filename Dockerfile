@@ -22,6 +22,14 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
+# tzdata: sin los datos de zonas horarias, TZ se ignora y el contenedor queda
+# en UTC sin avisar. La aplicación usa la hora local para decidir el turno de
+# cada préstamo y el día con el que busca al docente, así que tiene que estar.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tzdata \
+ && rm -rf /var/lib/apt/lists/*
+ENV TZ=America/Argentina/Buenos_Aires
+
 # Sólo dependencias de producción (sin Vite ni el plugin de React).
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
