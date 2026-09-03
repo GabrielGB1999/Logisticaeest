@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, Edit2, Trash2, ScanLine, Package } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, ScanLine, Package, FileSpreadsheet } from 'lucide-react'
 import api from '../services/api.js'
 import Modal from '../components/Modal.jsx'
 import ScannerModal from '../components/ScannerModal.jsx'
@@ -17,6 +17,7 @@ export default function InsumosView({ can }) {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   function load() {
     const params = {}
@@ -45,6 +46,22 @@ export default function InsumosView({ can }) {
     } finally { setSaving(false) }
   }
 
+
+  async function handleImport() {
+    setImporting(true)
+    try {
+      const { data } = await api.post('/insumos/import')
+      // Los avisos explican filas omitidas o filas sin código, que si no
+      // pasarían desapercibidos.
+      alert([data.message, ...(data.avisos || [])].join('\n\n'))
+      load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al importar')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este insumo?')) return
     try {
@@ -59,9 +76,16 @@ export default function InsumosView({ can }) {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div><h1>Insumos</h1><p>Gestión de materiales y consumibles</p></div>
-        {can('insumos_editar') && (
-          <button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Nuevo</button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {can('insumos_editar') && (
+            <button className="btn btn-secondary" onClick={handleImport} disabled={importing} title="Importar desde insumos.xlsx">
+              <FileSpreadsheet size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
+            </button>
+          )}
+          {can('insumos_editar') && (
+            <button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Nuevo</button>
+          )}
+        </div>
       </div>
 
       <div className="search-bar">

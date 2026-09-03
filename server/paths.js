@@ -24,9 +24,11 @@ export const DATA_DIR = desdeEnv(process.env.DATA_DIR, APP_ROOT)
 // Archivo de la base de datos (ruta completa, incluido el nombre del archivo).
 export const DB_FILE = desdeEnv(process.env.DB_FILE, join(DATA_DIR, 'logistica.sqlite'))
 
-// Carpeta donde se dejan las planillas para importar (alumnos.xlsx).
+// Carpeta donde se dejan las planillas para importar.
 export const EXCEL_DIR = desdeEnv(process.env.EXCEL_DIR, DATA_DIR)
-export const ALUMNOS_XLSX = join(EXCEL_DIR, 'alumnos.xlsx')
+export const ALUMNOS_XLSX = desdeEnv(process.env.ALUMNOS_XLSX, join(EXCEL_DIR, 'alumnos.xlsx'))
+export const HERRAMIENTAS_XLSX = desdeEnv(process.env.HERRAMIENTAS_XLSX, join(EXCEL_DIR, 'herramientas.xlsx'))
+export const INSUMOS_XLSX = desdeEnv(process.env.INSUMOS_XLSX, join(EXCEL_DIR, 'insumos.xlsx'))
 
 // Carpeta donde se guardan los reportes de despacho generados.
 export const REPORTES_DIR = desdeEnv(process.env.REPORTS_DIR, join(DATA_DIR, 'REPORTES_GUARDADOS'))

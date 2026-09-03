@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, Edit2, Trash2, ScanLine, Package } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, ScanLine, Package, FileSpreadsheet } from 'lucide-react'
 import api from '../services/api.js'
 import Modal from '../components/Modal.jsx'
 import ScannerModal from '../components/ScannerModal.jsx'
@@ -24,6 +24,7 @@ export default function HerramientasView({ can }) {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   function load() {
     const params = {}
@@ -68,15 +69,38 @@ export default function HerramientasView({ can }) {
     setBuscar(codigo)
   }
 
+
+  async function handleImport() {
+    setImporting(true)
+    try {
+      const { data } = await api.post('/herramientas/import')
+      // Los avisos explican filas omitidas, estados no reconocidos o filas sin
+      // código, que si no pasarían desapercibidos.
+      alert([data.message, ...(data.avisos || [])].join('\n\n'))
+      load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al importar')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const estadoInfo = v => ESTADOS.find(e => e.value === v) || ESTADOS[0]
 
   return (
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div><h1>Herramientas</h1><p>Gestión del inventario de herramientas</p></div>
-        {can('herramientas_editar') && (
-          <button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Nueva</button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {can('herramientas_editar') && (
+            <button className="btn btn-secondary" onClick={handleImport} disabled={importing} title="Importar desde herramientas.xlsx">
+              <FileSpreadsheet size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
+            </button>
+          )}
+          {can('herramientas_editar') && (
+            <button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Nueva</button>
+          )}
+        </div>
       </div>
 
       <div className="search-bar">

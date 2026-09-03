@@ -120,7 +120,9 @@ ejemplo la base en un disco dedicado y las planillas en una carpeta de red:
 
 ---
 
-## 4. Formato de la planilla de alumnos
+## 4. Formato de las planillas
+
+### 4.1 Alumnos (`alumnos.xlsx`)
 
 La importación se dispara desde **Alumnos → Importar Excel**. Lee el archivo
 **`alumnos.xlsx`** de la carpeta de planillas (`data/` por defecto). El nombre
@@ -179,6 +181,76 @@ La importación identifica a cada alumno **por su DNI**:
 
 Se puede reimportar la planilla todas las veces que haga falta: no se duplican
 alumnos ni se pierde el historial.
+
+---
+
+---
+
+### 4.2 Herramientas (`herramientas.xlsx`) e insumos (`insumos.xlsx`)
+
+Estas dos planillas se leen **por nombre de columna**, no por posición: las
+columnas pueden estar en cualquier orden, pueden sobrar columnas (se ignoran) y
+no importan mayúsculas ni acentos. La **primera fila** tiene que ser la de los
+encabezados.
+
+| Columna | ¿Obligatoria? | También se acepta escribir | Para qué sirve |
+|---|---|---|---|
+| `nombre` | **Sí** | herramienta, insumo, articulo, item, producto, denominacion | Nombre del item. Sin esto la fila se saltea. |
+| `codigo` | Muy recomendable | cod, code, codigo de barras, nro, numero | Es la clave con la que se reconoce un item ya cargado. |
+| `categoria` | No | rubro, familia, grupo | Si no existe, se crea sola. |
+| `ubicacion` | No | lugar, deposito, armario, tablero, estante, sector | Dónde está guardado. |
+| `descripcion` | No | detalle, observaciones, notas | Texto libre. |
+| `stock actual` | No | stock, cantidad, existencia | **Sólo se usa al crear el item** (ver más abajo). |
+| `stock minimo` | No | minimo, min, stock critico | Debajo de este valor se genera una alerta. |
+| `estado` | No (sólo herramientas) | condicion | disponible, en uso, en reparación, baja. |
+| `unidad` | No (sólo insumos) | um, medida | unidad, caja, metro, litro… |
+| `proveedor` | No (sólo insumos) | vendedor, fabricante, marca | Texto libre. |
+
+#### Ejemplo (`herramientas.xlsx`)
+
+| Código | Nombre | Categoría | Ubicación | Stock Actual | Stock Mínimo | Estado |
+|---|---|---|---|---|---|---|
+| IT-0402 | Pinza de frenado | Herramientas manuales | armario 1 | 4 | 1 | Disponible |
+| IT-0713 | Pinza pico pato | Herramientas manuales | tablero B3 | 2 | 1 | En reparación |
+
+#### Ejemplo (`insumos.xlsx`)
+
+| Código | Insumo | Rubro | Unidad | Stock | Mínimo | Proveedor |
+|---|---|---|---|---|---|---|
+| INS-1 | Silicona neutra | Consumibles de taller | unidad | 12 | 5 | Ferretería Sur |
+| INS-2 | Guantes de látex | Consumibles de taller | caja | 8 | 2 | |
+
+#### El stock nunca se pisa al reimportar
+
+Al **crear** un item se toma el stock de la planilla. Al **reimportar**, si el
+código ya existe se actualizan nombre, descripción, categoría, ubicación, stock
+mínimo, estado, unidad y proveedor — pero **`stock actual` se deja como está**.
+
+El stock del sistema es el que llevan los movimientos y los préstamos del día a
+día, y la planilla casi siempre está más atrasada. Si se sobrescribiera, cada
+importación borraría todo lo registrado desde la última vez que se exportó.
+
+> Para corregir el stock de un item, hacelo desde la pantalla de Herramientas o
+> Insumos, o cargá un movimiento de entrada/salida.
+
+#### Las filas sin código se duplican
+
+Una fila sin `codigo` no se puede reconocer, así que **se agrega como nueva cada
+vez que importás**. El resumen al terminar avisa cuántas filas están en esa
+situación. Conviene ponerle código a todo lo que vayas a reimportar.
+
+#### Qué informa al terminar
+
+Un resumen del estilo:
+
+```
+Importación terminada. 4 creadas, 12 actualizadas, 1 omitidas (sin nombre),
+categorías nuevas: Instrumentos de medición.
+```
+
+Y avisos aparte si hubo filas sin código, estados que no se entendieron, o una
+categoría cuyo nombre ya estaba usado por el otro tipo (un mismo nombre no puede
+ser categoría de herramienta y de insumo a la vez).
 
 ---
 
