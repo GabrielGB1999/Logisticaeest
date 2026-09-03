@@ -11,23 +11,49 @@ export function normalizar(texto) {
 }
 
 // Lee todas las hojas del archivo y devuelve las filas con los encabezados ya
-// normalizados. La primera fila de cada hoja son los nombres de las columnas.
-export function leerPlanilla(rutaArchivo) {
+// normalizados.
+//
+// La fila de encabezados no siempre es la primera: es muy común que arriba haya
+// un título, el nombre de la escuela o una fila en blanco. Por eso se buscan
+// los encabezados entre las primeras filas, quedándose con la que más columnas
+// conocidas tenga. `clavesConocidas` son los nombres de columna que se esperan.
+//
+// Devuelve [] si en ninguna hoja se reconocieron encabezados, para que quien
+// llama pueda decidir qué hacer.
+export function leerPlanilla(rutaArchivo, clavesConocidas = []) {
   const libro = XLSX.readFile(rutaArchivo)
+  const esperadas = new Set(clavesConocidas.map(normalizar))
   const filas = []
+
   for (const nombreHoja of libro.SheetNames) {
-    const datos = XLSX.utils.sheet_to_json(libro.Sheets[nombreHoja], { defval: '' })
-    for (const cruda of datos) {
+    const matriz = XLSX.utils.sheet_to_json(libro.Sheets[nombreHoja], { header: 1, defval: '', blankrows: false })
+    if (!matriz.length) continue
+
+    let filaEncabezado = -1
+    let mejorPuntaje = 0
+    for (let i = 0; i < Math.min(matriz.length, 10); i++) {
+      const puntaje = matriz[i].filter(celda => esperadas.has(normalizar(celda))).length
+      if (puntaje > mejorPuntaje) { mejorPuntaje = puntaje; filaEncabezado = i }
+    }
+    if (filaEncabezado === -1) continue
+
+    const encabezados = matriz[filaEncabezado].map(normalizar)
+    for (let i = filaEncabezado + 1; i < matriz.length; i++) {
       const fila = {}
-      for (const [clave, valor] of Object.entries(cruda)) {
-        const k = normalizar(clave)
+      matriz[i].forEach((valor, col) => {
+        const k = encabezados[col]
         // Si dos columnas normalizan igual, gana la primera que traiga dato.
         if (k && (fila[k] === undefined || String(fila[k]).trim() === '')) fila[k] = valor
-      }
-      filas.push(fila)
+      })
+      if (Object.values(fila).some(v => String(v).trim() !== '')) filas.push(fila)
     }
   }
   return filas
+}
+
+// Todos los alias posibles, para poder detectar la fila de encabezados.
+export function clavesDe(...grupos) {
+  return grupos.flat()
 }
 
 // Devuelve el valor de la primera columna cuyo encabezado coincida con alguno
@@ -87,7 +113,17 @@ export const ALIAS = {
   stockActual:  ['stock actual', 'stockactual', 'stock', 'cantidad', 'existencia', 'existencias'],
   stockMinimo:  ['stock minimo', 'stockminimo', 'minimo', 'min', 'stock critico'],
   unidad:       ['unidad', 'unidad de medida', 'um', 'medida'],
-  proveedor:    ['proveedor', 'vendedor', 'fabricante', 'marca']
+  proveedor:    ['proveedor', 'vendedor', 'fabricante', 'marca'],
+
+  // Alumnos
+  dni:          ['dni', 'documento', 'nro documento', 'n documento', 'doc', 'matricula'],
+  apellido:     ['apellido', 'apellidos'],
+  nombreAlumno: ['nombre', 'nombres'],
+  // Columna única con apellido y nombre juntos, separados por coma.
+  apellidoNombre: ['apellido y nombre', 'apellido, nombre', 'apellido nombre', 'apellidos y nombres', 'nombre completo', 'alumno', 'apellido y nombres'],
+  curso:        ['curso', 'ano', 'anio', 'año', 'grado'],
+  grupo:        ['grupo', 'division', 'comision', 'seccion'],
+  turno:        ['turno', 'jornada']
 }
 
 // Los estados válidos son los del CHECK de la tabla herramientas. Se aceptan

@@ -4,7 +4,7 @@ import { getDB } from '../database.js'
 import { requirePermiso } from '../middleware/auth.js'
 import { checkStockAlertas } from '../alertas.js'
 import { INSUMOS_XLSX, EXCEL_DIR } from '../paths.js'
-import { leerPlanilla, texto, numero, resolverCategoria, ALIAS } from '../planillas.js'
+import { leerPlanilla, texto, numero, resolverCategoria, clavesDe, ALIAS } from '../planillas.js'
 
 const router = Router()
 
@@ -17,7 +17,7 @@ router.post('/import', requirePermiso('insumos_editar'), async (req, res) => {
   const resumen = { creados: 0, actualizados: 0, sinCodigo: 0, omitidos: 0, categoriasCreadas: [], avisos: [] }
 
   try {
-    const filas = leerPlanilla(INSUMOS_XLSX)
+    const filas = leerPlanilla(INSUMOS_XLSX, clavesDe(ALIAS.codigo, ALIAS.nombre, ALIAS.descripcion, ALIAS.categoria, ALIAS.ubicacion, ALIAS.unidad, ALIAS.proveedor, ALIAS.stockActual, ALIAS.stockMinimo))
     await db.run('BEGIN')
 
     for (const fila of filas) {

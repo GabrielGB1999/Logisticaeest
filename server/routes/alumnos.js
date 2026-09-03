@@ -3,69 +3,128 @@ import XLSX from 'xlsx'
 import { existsSync } from 'fs'
 import { getDB } from '../database.js'
 import { requirePermiso } from '../middleware/auth.js'
-import { ALUMNOS_XLSX, DATA_DIR } from '../paths.js'
+import { ALUMNOS_XLSX, EXCEL_DIR } from '../paths.js'
+import { leerPlanilla, texto, clavesDe, ALIAS } from '../planillas.js'
 
 const router = Router()
 
+// Separa "Perez, Maria Luz" en apellido y nombre. Corta en la PRIMERA coma:
+// todo lo que sigue es el nombre, así un "Perez, Maria, Luz" no pierde "Luz".
+function partirApellidoNombre(completo) {
+  const coma = completo.indexOf(',')
+  if (coma === -1) return { apellido: completo.trim(), nombre: '' }
+  return { apellido: completo.slice(0, coma).trim(), nombre: completo.slice(coma + 1).trim() }
+}
+
+// Formato viejo, sin encabezados: se saltean dos filas y las columnas están en
+// posiciones fijas (A=DNI, B="Apellido, Nombre", C=curso, D=grupo). Se mantiene
+// para que las planillas que ya se venían usando sigan funcionando.
+function leerFormatoPosicional(rutaArchivo) {
+  const libro = XLSX.readFile(rutaArchivo)
+  const filas = []
+  for (const nombreHoja of libro.SheetNames) {
+    const datos = XLSX.utils.sheet_to_json(libro.Sheets[nombreHoja], { header: 'A', range: 2 })
+    for (const fila of datos) {
+      const dni = String(fila.A ?? '').trim()
+      const completo = String(fila.B ?? '').trim()
+      if (!dni || !completo) continue
+      filas.push({ dni, ...partirApellidoNombre(completo), curso: String(fila.C ?? '').trim(), grupo: String(fila.D ?? '').trim(), turno: '' })
+    }
+  }
+  return filas
+}
+
+// Formato nuevo: columnas reconocidas por el nombre del encabezado. Admite
+// apellido y nombre en columnas separadas, o juntos en una sola columna.
+function leerFormatoPorEncabezados(rutaArchivo) {
+  const crudas = leerPlanilla(rutaArchivo, clavesDe(
+    ALIAS.dni, ALIAS.apellido, ALIAS.nombreAlumno, ALIAS.apellidoNombre, ALIAS.curso, ALIAS.grupo, ALIAS.turno
+  ))
+  return crudas.map(fila => {
+    const dni = texto(fila, ALIAS.dni)
+    let apellido = texto(fila, ALIAS.apellido)
+    let nombre = texto(fila, ALIAS.nombreAlumno)
+
+    // Si vienen juntos en una sola columna hay que partirlos. Ojo: "nombre" es
+    // alias tanto de la columna de nombre de pila como de "nombre completo",
+    // así que si no hay columna de apellido propia se trata como combinada.
+    if (!apellido) {
+      const combinado = texto(fila, ALIAS.apellidoNombre) || nombre
+      const partido = partirApellidoNombre(combinado)
+      apellido = partido.apellido
+      nombre = partido.nombre
+    }
+
+    return { dni, apellido, nombre, curso: texto(fila, ALIAS.curso), grupo: texto(fila, ALIAS.grupo), turno: texto(fila, ALIAS.turno) }
+  }).filter(a => a.dni && a.apellido)
+}
+
 router.post('/import', requirePermiso('alumnos_editar'), async (req, res) => {
-    const filePath = ALUMNOS_XLSX;
+  if (!existsSync(ALUMNOS_XLSX)) {
+    return res.status(404).json({ error: `No se encontró alumnos.xlsx en la carpeta de planillas (${EXCEL_DIR}). Copiá la planilla ahí y volvé a intentar.` })
+  }
 
-    if (!existsSync(filePath)) {
-        return res.status(404).json({ error: `No se encontró alumnos.xlsx en la carpeta de datos (${DATA_DIR}). Copiá la planilla ahí y volvé a intentar.` });
+  const resumen = { creados: 0, actualizados: 0, omitidos: 0, formato: 'encabezados', avisos: [] }
+  let db
+
+  try {
+    let filas = leerFormatoPorEncabezados(ALUMNOS_XLSX)
+
+    // Sin encabezados reconocibles se prueba el formato viejo de posiciones
+    // fijas, para no romper las planillas que ya estaban en uso.
+    if (filas.length === 0) {
+      filas = leerFormatoPosicional(ALUMNOS_XLSX)
+      resumen.formato = 'posicional'
+      if (filas.length > 0) {
+        resumen.avisos.push('No se encontraron encabezados, así que se leyó con el formato viejo (A=DNI, B="Apellido, Nombre", C=curso, D=grupo, salteando dos filas). Poniéndole encabezados a la planilla el orden de las columnas deja de importar.')
+      }
     }
 
-    let db;
-    try {
-        db = await getDB();
-        const workbook = XLSX.readFile(filePath);
-        let totalProcessed = 0;
-
-        await db.run("BEGIN TRANSACTION");
-        // INSERT OR REPLACE borraba la fila y la volvía a insertar con un id nuevo,
-        // dejando huérfanos los préstamos que apuntaban al alumno (prestamos.persona_id
-        // no tiene clave foránea) y pisando el turno cargado a mano. El upsert por DNI
-        // conserva el id y sólo toca las columnas que trae la planilla.
-        const stmt = await db.prepare(`
-            INSERT INTO alumnos (dni, apellido, nombre, curso, grupo) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(dni) DO UPDATE SET
-                apellido = excluded.apellido,
-                nombre   = excluded.nombre,
-                curso    = excluded.curso,
-                grupo    = excluded.grupo
-        `);
-        
-        for (const sheetName of workbook.SheetNames) {
-            const sheet = workbook.Sheets[sheetName];
-            const data = XLSX.utils.sheet_to_json(sheet, { header: 'A', range: 2 });
-
-            for (const row of data) {
-                const dni = String(row.A || '').trim();
-                const full_name = String(row.B || '').trim();
-                const curso = String(row.C || '').trim();
-                const grupo = String(row.D || '').trim();
-
-                if (dni && full_name) {
-                    // Se corta en la PRIMERA coma: todo lo que sigue es el
-                    // nombre. Con split(',')[1] un "Perez, Maria, Luz" perdía
-                    // "Luz" sin avisar.
-                    const coma = full_name.indexOf(',');
-                    const apellido = (coma === -1 ? full_name : full_name.slice(0, coma)).trim();
-                    const nombre = (coma === -1 ? '' : full_name.slice(coma + 1)).trim();
-                    await stmt.run(dni, apellido, nombre, curso, grupo);
-                    totalProcessed++;
-                }
-            }
-        }
-
-        await stmt.finalize();
-        await db.run("COMMIT");
-        
-        res.json({ message: `Importación exitosa. ${totalProcessed} alumnos procesados.` });
-    } catch (err) {
-        if (db) await db.run("ROLLBACK").catch(() => {});
-        res.status(500).json({ error: err.message });
+    if (filas.length === 0) {
+      return res.status(400).json({ error: 'No se pudo leer ninguna fila. Revisá que la primera fila tenga los encabezados (dni, apellido, nombre, curso, grupo) y que haya datos debajo.' })
     }
-});
+
+    db = await getDB()
+    await db.run('BEGIN')
+
+    for (const a of filas) {
+      if (!a.dni || !a.apellido) { resumen.omitidos++; continue }
+
+      const existente = await db.get('SELECT id FROM alumnos WHERE dni = ?', [a.dni])
+
+      // Sólo se tocan las columnas que la planilla realmente trae: si no hay
+      // columna de turno, se conserva el que esté cargado a mano.
+      const campos = { apellido: a.apellido, nombre: a.nombre }
+      if (a.curso) campos.curso = a.curso
+      if (a.grupo) campos.grupo = a.grupo
+      if (a.turno) campos.turno = a.turno
+
+      if (existente) {
+        // Se actualiza en lugar de reemplazar: la fila conserva su id y con él
+        // los préstamos que la referencian (prestamos.persona_id no tiene
+        // clave foránea que los proteja).
+        const cols = Object.keys(campos)
+        await db.run(`UPDATE alumnos SET ${cols.map(c => `${c}=?`).join(', ')} WHERE id = ?`, [...cols.map(c => campos[c]), existente.id])
+        resumen.actualizados++
+      } else {
+        await db.run(
+          'INSERT INTO alumnos (dni, apellido, nombre, curso, grupo, turno) VALUES (?, ?, ?, ?, ?, ?)',
+          [a.dni, a.apellido, a.nombre, campos.curso ?? null, campos.grupo ?? null, campos.turno ?? 'Mañana']
+        )
+        resumen.creados++
+      }
+    }
+
+    await db.run('COMMIT')
+  } catch (err) {
+    if (db) await db.run('ROLLBACK').catch(() => {})
+    return res.status(400).json({ error: `No se pudo importar: ${err.message}` })
+  }
+
+  const partes = [`${resumen.creados} creados`, `${resumen.actualizados} actualizados`]
+  if (resumen.omitidos) partes.push(`${resumen.omitidos} omitidos (sin DNI o sin apellido)`)
+  res.json({ message: `Importación terminada. ${partes.join(', ')}.`, ...resumen })
+})
 
 router.get('/', async (req, res) => {
   const db = await getDB()

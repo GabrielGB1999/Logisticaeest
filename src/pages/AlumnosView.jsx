@@ -52,7 +52,10 @@ export default function AlumnosView({ can }) {
     setImporting(true)
     try {
       const { data } = await api.post('/alumnos/import')
-      alert(data.message)
+      // Los avisos explican, por ejemplo, que la planilla se leyó con el
+      // formato viejo o cuántas filas se saltearon: sin esto pasarían
+      // desapercibidos.
+      alert([data.message, ...(data.avisos || [])].join('\n\n'))
       load()
     } catch (err) {
       alert(err.response?.data?.error || 'Error al importar')

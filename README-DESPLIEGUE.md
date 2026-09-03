@@ -125,64 +125,69 @@ ejemplo la base en un disco dedicado y las planillas en una carpeta de red:
 ### 4.1 Alumnos (`alumnos.xlsx`)
 
 La importación se dispara desde **Alumnos → Importar Excel**. Lee el archivo
-**`alumnos.xlsx`** de la carpeta de planillas (`data/` por defecto). El nombre
-tiene que ser exactamente ese.
+**`alumnos.xlsx`** de la carpeta de planillas (`data/` por defecto).
 
-### Estructura
+Igual que las otras dos planillas, las columnas se reconocen **por el nombre
+del encabezado**: pueden estar en cualquier orden, pueden sobrar columnas y no
+importan mayúsculas ni acentos. Si arriba de los encabezados hay un título o
+filas en blanco, se saltean solas. Se leen **todas las hojas** del archivo, así
+que se pueden separar turnos o cursos en hojas distintas.
 
-- Se **ignoran las 2 primeras filas** (título y encabezados). Los datos
-  arrancan en la **fila 3**.
-- Se leen **todas las hojas** del archivo, así que se pueden separar los turnos
-  o los cursos en hojas distintas.
-- Las columnas se identifican por **posición**, no por el nombre del encabezado:
+| Columna | ¿Obligatoria? | También se acepta escribir | Ejemplo |
+|---|---|---|---|
+| `dni` | **Sí** | documento, doc, matricula | `45111222` |
+| `apellido` | **Sí** (o la columna combinada) | apellidos | `Perez` |
+| `nombre` | No | nombres | `Juan Carlos` |
+| `curso` | No | año, grado | `3°` |
+| `grupo` | No | division, comision, seccion | `A` |
+| `turno` | No | jornada | `Mañana` |
 
-| Columna | Contenido            | Obligatorio | Ejemplo              |
-|---------|----------------------|-------------|----------------------|
-| **A**   | DNI                  | Sí          | `45111222`           |
-| **B**   | `Apellido, Nombre`   | Sí          | `Perez, Juan Carlos` |
-| **C**   | Curso                | No          | `3°`                 |
-| **D**   | Grupo                | No          | `A`                  |
+#### Ejemplo
 
-- De la **columna E en adelante se ignora todo**. En particular **el turno no
-  se importa**: los alumnos nuevos quedan en "Mañana" y hay que ajustarlo desde
-  la aplicación.
+| DNI | Apellido | Nombre | Curso | División | Turno |
+|---|---|---|---|---|---|
+| 45111222 | Perez | Juan Carlos | 3° | A | Mañana |
+| 45333444 | Gomez | Ana | 4° | B | Tarde |
 
-### Ejemplo
+#### Apellido y nombre en una sola columna
 
-|   | A          | B                      | C     | D      |
-|---|------------|------------------------|-------|--------|
-| 1 | ESCUELA TÉCNICA N°4 — LISTADO |     |       |        |
-| 2 | DNI        | APELLIDO, NOMBRE       | CURSO | GRUPO  |
-| 3 | 45111222   | Perez, Juan Carlos     | 3°    | A      |
-| 4 | 45333444   | Gomez, Ana             | 4°    | B      |
+Si la planilla los trae juntos, alcanza con una columna llamada **`Apellido y
+Nombre`** (o `Apellido, Nombre`, `Nombre completo`, `Alumno`). Se parten por la
+**primera coma**:
 
-### La coma de la columna B es obligatoria
+| En la planilla | Apellido | Nombre |
+|---|---|---|
+| `Perez, Juan Carlos` | `Perez` | `Juan Carlos` |
+| `De la Torre, Maria, Luz` | `De la Torre` | `Maria, Luz` |
+| `Gomez Ana`  ← sin coma | `Gomez Ana` | *(vacío)* |
 
-El apellido y el nombre se separan por la **primera coma**:
+Sin la coma el alumno se importa igual, pero con el nombre vacío. No da error,
+así que conviene revisarlo antes.
 
-| En la planilla              | Apellido      | Nombre        |
-|-----------------------------|---------------|---------------|
-| `Perez, Juan Carlos`        | `Perez`       | `Juan Carlos` |
-| `De la Torre, Maria, Luz`   | `De la Torre` | `Maria, Luz`  |
-| `Gomez Ana`  ← **sin coma** | `Gomez Ana`   | *(vacío)*     |
+#### Las planillas viejas siguen funcionando
 
-Si falta la coma, el alumno se importa igual pero **con el nombre vacío**. No
-da error, así que conviene revisarlo antes de importar.
+Si el archivo **no tiene encabezados reconocibles**, se lee con el formato
+anterior: se saltean las 2 primeras filas y las columnas se toman por posición
+(**A** = DNI, **B** = `Apellido, Nombre`, **C** = curso, **D** = grupo). El
+resumen avisa cuando pasa esto.
 
-### Qué pasa al reimportar
+No hace falta rehacer nada para seguir usándolo, pero poniéndole encabezados a
+la planilla el orden de las columnas deja de importar y se puede además cargar
+el **turno**, que con el formato viejo no se importa.
 
-La importación identifica a cada alumno **por su DNI**:
+#### Qué pasa al reimportar
+
+Cada alumno se identifica **por su DNI**:
 
 - **DNI nuevo** → se crea el alumno.
-- **DNI que ya existe** → se actualizan apellido, nombre, curso y grupo. Se
-  conservan su turno y todo su historial de préstamos.
-- **Fila sin DNI, o sin nombre** → se saltea, sin cortar la importación.
-- Los espacios de más se recortan solos.
+- **DNI que ya existe** → se actualizan sólo las columnas que trae la planilla.
+  La fila conserva su id, y con él todo su historial de préstamos.
+- **Columna que la planilla no trae** → se deja como está. Por ejemplo, si no
+  hay columna `turno`, se conserva el que esté cargado a mano.
+- **Fila sin DNI o sin apellido** → se saltea, sin cortar la importación.
 
-Se puede reimportar la planilla todas las veces que haga falta: no se duplican
-alumnos ni se pierde el historial.
-
----
+Se puede reimportar todas las veces que haga falta: no se duplican alumnos ni
+se pierde el historial.
 
 ---
 
